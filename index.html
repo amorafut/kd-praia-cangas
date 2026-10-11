@@ -97,7 +97,7 @@ async function checkoutWhatsApp(){
  if(!name){toast('Informe seu nome para continuar.');document.getElementById('customerName').focus();return}
  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){toast('Informe um e-mail válido para acompanhar o pedido.');document.getElementById('customerEmail').focus();return}
  if(!/^\d{5}-?\d{3}$/.test(cep)){toast('Informe um CEP válido com 8 números.');document.getElementById('customerCep').focus();return}
- let subtotal=0,items=cart.map(l=>{let p=products.find(x=>String(x.id)===String(l.id));if(!p)return null;const lineTotal=Number(p.price)*Number(l.qty);subtotal+=lineTotal;return {product_id:String(p.id),name:p.name,quantity:Number(l.qty),unit_price:Number(p.price),line_total:lineTotal}}).filter(Boolean);
+ let subtotal=0,items=cart.map(l=>{let p=products.find(x=>String(x.id)===String(l.id));if(!p)return null;const lineTotal=Number(p.price)*Number(l.qty);subtotal+=lineTotal;return {product_id:String(p.id),name:p.name,image:p.image||'',quantity:Number(l.qty),unit_price:Number(p.price),line_total:lineTotal}}).filter(Boolean);
  if(!items.length){toast('Não foi possível localizar os produtos da sacola.');return}
  if(!db){toast('Não foi possível conectar ao sistema de pedidos. Tente novamente em instantes.');return}
  const cepFmt=cep.replace(/\D/g,'').replace(/^(\d{5})(\d{3})$/,'$1-$2');
