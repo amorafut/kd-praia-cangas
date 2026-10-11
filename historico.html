@@ -61,7 +61,15 @@ $('trackForm').addEventListener('submit',async e=>{
   if(error)throw error;
   const orders=Array.isArray(data)?data:[];
   if(!orders.length){showError('Não encontramos pedidos para esse e-mail. Confira se digitou o mesmo e-mail usado nas compras.');return}
-  $('result').innerHTML='<h2>'+orders.length+(orders.length===1?' pedido encontrado':' pedidos encontrados')+'</h2>'+orders.map((o,i)=>renderOrder(o,i)).join('');
+  // Encontra fotos também para pedidos antigos que foram salvos antes de guardarmos a imagem.
+  const {data:productsData,error:productsError}=await db.from('products').select('id,image_url');
+  if(!productsError&&Array.isArray(productsData)){
+   const imageById=new Map(productsData.map(p=>[String(p.id),p.image_url||'']));
+   orders.forEach(o=>{if(Array.isArray(o.items))o.items=o.items.map(item=>({...item,image:item.image||imageById.get(String(item.product_id))||''}));});
+  }
+  const cards=orders.map((o,i)=>renderOrder(o,i)).join('');
+  const cardCount=(cards.match(/class="order-card"/g)||[]).length;
+  $('result').innerHTML='<h2>'+cardCount+(cardCount===1?' pedido encontrado':' pedidos encontrados')+'</h2>'+cards;
   $('result').classList.remove('hidden');$('message').textContent='Histórico carregado do mais recente para o mais antigo. Toque em qualquer pedido para ver os detalhes.';$('message').className='muted';
  }catch(err){console.error(err);showError('Não foi possível consultar o histórico. Confirme se a nova migração foi executada no Supabase.')}
  finally{$('submitBtn').disabled=false;$('submitBtn').textContent='Consultar histórico'}
