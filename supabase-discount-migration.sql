@@ -17,3 +17,6 @@ alter table public.orders
 alter table public.orders
   add constraint orders_discount_amount_nonnegative_check
   check (discount_amount >= 0);
+
+-- Solicita ao PostgREST/Supabase atualizar o cache de schema após criar as colunas.
+notify pgrst, 'reload schema';
