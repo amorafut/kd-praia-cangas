@@ -29,7 +29,7 @@ function imageUrl(item){
 }
 function itemThumb(item,small=false){
  const url=imageUrl(item);
- return url?'<img '+(small?'':'class="thumb"')+' src="'+safe(url)+'" alt="'+safe(item.name||'Produto do pedido')+'" loading="lazy">':(small?'<span class="thumb-placeholder" aria-hidden="true">🌴</span>':'<span class="thumb-placeholder" aria-hidden="true">🌴</span>');
+ return url?'<img '+(small?'':'class="thumb"')+' src="'+safe(url)+'" alt="'+safe(item.name||'Produto do pedido')+'" loading="lazy" onerror="this.style.display=\'none\';this.insertAdjacentHTML(\'afterend\',\'<span class=&quot;thumb-placeholder&quot; aria-hidden=&quot;true&quot;>Foto indisponível</span>\')">':'<span class="thumb-placeholder" aria-hidden="true">Foto indisponível</span>';
 }
 function renderOrder(o,index){
  const info=statusInfo[o.status]||['Status do pedido',o.status||'Em atualização'];
@@ -68,7 +68,7 @@ $('trackForm').addEventListener('submit',async e=>{
    const imageById=new Map(productsData.map(p=>[String(p.id),primaryImage(p)]));
    const imageBySku=new Map(productsData.filter(p=>p.sku&&primaryImage(p)).map(p=>[String(p.sku).trim().toLowerCase(),primaryImage(p)]));
    const imageByName=new Map(productsData.filter(p=>p.name&&primaryImage(p)).map(p=>[String(p.name).trim().toLowerCase(),primaryImage(p)]));
-   orders.forEach(o=>{if(Array.isArray(o.items))o.items=o.items.map(item=>({...item,image:item.image||imageById.get(String(item.product_id))||imageBySku.get(String(item.sku||item.product_sku||'').trim().toLowerCase())||imageByName.get(String(item.name||'').trim().toLowerCase())||''}));});
+   orders.forEach(o=>{if(Array.isArray(o.items))o.items=o.items.map(item=>{const savedImage=String(item.image||item.image_url||'');const validSavedImage=/^https?:\/\//i.test(savedImage)?savedImage:'';const cleanName=String(item.name||'').replace(/\s+—\s+.*$/,'').trim().toLowerCase();return {...item,image:validSavedImage||imageById.get(String(item.product_id))||imageBySku.get(String(item.sku||item.product_sku||'').trim().toLowerCase())||imageByName.get(cleanName)||''};});});
   }
   const cards=orders.map((o,i)=>renderOrder(o,i)).join('');
   const cardCount=(cards.match(/class="order-card"/g)||[]).length;
