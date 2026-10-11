@@ -101,8 +101,8 @@ async function checkoutWhatsApp(){
  if(!db){toast('Não foi possível conectar ao sistema de pedidos. Tente novamente em instantes.');return}
  const cepFmt=cep.replace(/\D/g,'').replace(/^(\d{5})(\d{3})$/,'$1-$2');
  const orderNumber='KP-'+new Date().toISOString().replace(/[-:TZ.]/g,'').slice(0,14)+'-'+Math.floor(Math.random()*900+100);
- const {data:order,error}=await db.from('orders').insert({order_number:orderNumber,customer_name:name,customer_cep:cepFmt,customer_city:city,customer_note:note,items,subtotal,status:'Novo pedido'}).select('id,order_number').single();
- if(error){console.error('Falha ao registrar pedido',error);toast('O pedido ainda não foi registrado. A administração precisa ativar a tabela de pedidos no Supabase.');return}
+ const {error}=await db.from('orders').insert({order_number:orderNumber,customer_name:name,customer_cep:cepFmt,customer_city:city,customer_note:note,items,subtotal,status:'Novo pedido'});
+ if(error){console.error('Falha ao registrar pedido',error);toast('Falha ao registrar pedido: '+(error.message||'verifique as permissões da tabela orders')+'. Nenhuma mensagem foi enviada ao WhatsApp.');return}
  const lines=items.map((it,i)=>(i+1)+'. '+it.name+'\n   Quantidade: '+it.quantity+'\n   Valor unitário: '+money(it.unit_price)+'\n   Total do item: '+money(it.line_total));
  const msg='Olá! Quero fazer um pedido na '+settings.brand+'.\nNúmero do pedido: '+orderNumber+'\n\nRESUMO DO PEDIDO\n'+lines.join('\n\n')+'\n\nSubtotal dos produtos: '+money(subtotal)+'\nFrete: combinar diretamente pelo WhatsApp\nTotal final: a confirmar após definir o frete\n\nDADOS PARA ENTREGA\nNome: '+name+'\nCEP: '+cepFmt+(city?'\nCidade/bairro: '+city:'')+(note?'\nObservações: '+note:'')+'\n\nPor favor, me informe o valor do frete, a disponibilidade dos produtos e as opções para finalizar o pagamento.';
  const url='https://wa.me/'+phone+'?text='+encodeURIComponent(msg);
