@@ -25,7 +25,7 @@ let db=null;
 function showError(t){$('message').textContent=t;$('message').className='muted err';$('result').classList.add('hidden')}
 function imageUrl(item){
  const candidate=item.image_url||item.imageUrl||item.image||item.photo||item.thumbnail||item.photo_url||'';
- return /^https?:\\/\\//i.test(String(candidate))?String(candidate):'';
+ return /^https?:\/\//i.test(String(candidate))?String(candidate):'';
 }
 function itemThumb(item,small=false){
  const url=imageUrl(item);
