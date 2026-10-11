@@ -40,7 +40,7 @@ function renderOrder(o,index){
  const idx=steps.indexOf(o.status);
  const tracking=o.tracking_code?'<div class="tracking"><b>Código de rastreio</b><div class="tracking-code-row"><span class="tracking-code-value">'+safe(o.tracking_code)+'</span><button type="button" class="copy-tracking" data-copy-tracking="'+safe(o.tracking_code)+'">Copiar</button><span class="copy-feedback" aria-live="polite"></span></div><a href="https://rastreamento.correios.com.br/app/index.php" target="_blank" rel="noopener">Consultar no site dos Correios ↗</a></div>':'<p class="muted">O código de rastreio ainda não foi informado pela loja.</p>';
  const progress=o.status==='Cancelado'?'<div class="tracking">Este pedido foi cancelado. Se precisar de ajuda, fale com a loja.</div>':'<div class="steps">'+steps.map((st,i)=>'<div class="step '+(idx>=i?'active':'')+'"><span class="dot"></span><div><b>'+safe(st)+'</b>'+(st===o.status?'<div class="muted">Etapa atual</div>':'')+'</div></div>').join('')+(o.status==='Concluído'?'<div class="step active"><span class="dot"></span><div><b>Concluído</b><div class="muted">Etapa atual</div></div></div>':'')+'</div>';
- const itemHtml=orderItems.map(i=>'<div class="order-item">'+itemThumb(i,true)+'<div class="order-item-info"><b>'+safe(i.name||'Produto')+'</b><small>'+safe(i.quantity)+' un. × '+money(i.unit_price)+'</small></div><b>'+money(Number(i.quantity||0)*Number(i.unit_price||0))+'</b></div>').join('');
+ const itemHtml=orderItems.map(i=>'<div class="order-item">'+itemThumb(i,true)+'<div class="order-item-info"><b>'+safe(i.name||'Produto')+'</b><small>SKU: '+safe(i.sku||i.product_sku||'Pedido antigo')+' · '+safe(i.quantity)+' un. × '+money(i.unit_price)+'</small></div><b>'+money(Number(i.quantity||0)*Number(i.unit_price||0))+'</b></div>').join('');
  return '<article class="order-card" data-order-index="'+index+'" tabindex="0" role="button" aria-expanded="false" aria-label="Ver detalhes do pedido '+safe(o.order_number)+'"><div class="order-summary"><div class="thumbs">'+(thumbs||'<span class="thumb-placeholder" aria-hidden="true">🌴</span>')+'</div><div class="order-summary-line"><div><div class="muted">Pedido #'+safe(o.order_number)+' · '+safe(date)+'</div><h2>'+safe(info[0])+'</h2><div class="order-meta">'+money(o.total)+' · '+orderItems.length+(orderItems.length===1?' item':' itens')+'</div></div><span class="order-open">Ver detalhes⌄</span></div></div><div class="order-details" hidden><span class="status">'+safe(o.status)+'</span><p>'+safe(info[1])+'</p>'+progress+'<h3>Itens do pedido</h3>'+itemHtml+'<div class="order-totals"><div><span>Subtotal</span><b>'+money(o.subtotal)+'</b></div><div><span>Frete</span><b>'+money(o.shipping_cost)+'</b></div><div class="total"><span>Total do pedido</span><b>'+money(o.total)+'</b></div></div><h3>Envio e rastreamento</h3>'+tracking+'<p class="muted">Última atualização: '+new Date(o.updated_at||o.created_at).toLocaleString('pt-BR')+'</p></div></article>';
 }
 function toggleOrder(card){
@@ -62,11 +62,13 @@ $('trackForm').addEventListener('submit',async e=>{
   const orders=Array.isArray(data)?data:[];
   if(!orders.length){showError('Não encontramos pedidos para esse e-mail. Confira se digitou o mesmo e-mail usado nas compras.');return}
   // Encontra fotos também para pedidos antigos que foram salvos antes de guardarmos a imagem.
-  const {data:productsData,error:productsError}=await db.from('products').select('id,name,image_url');
+  const {data:productsData,error:productsError}=await db.from('products').select('id,sku,name,image_url,images');
   if(!productsError&&Array.isArray(productsData)){
-   const imageById=new Map(productsData.map(p=>[String(p.id),p.image_url||'']));
-   const imageByName=new Map(productsData.filter(p=>p.name&&p.image_url).map(p=>[String(p.name).trim().toLowerCase(),p.image_url]));
-   orders.forEach(o=>{if(Array.isArray(o.items))o.items=o.items.map(item=>({...item,image:item.image||imageById.get(String(item.product_id))||imageByName.get(String(item.name||'').trim().toLowerCase())||''}));});
+   const primaryImage=p=>p.image_url||(Array.isArray(p.images)&&p.images[0])||'';
+   const imageById=new Map(productsData.map(p=>[String(p.id),primaryImage(p)]));
+   const imageBySku=new Map(productsData.filter(p=>p.sku&&primaryImage(p)).map(p=>[String(p.sku).trim().toLowerCase(),primaryImage(p)]));
+   const imageByName=new Map(productsData.filter(p=>p.name&&primaryImage(p)).map(p=>[String(p.name).trim().toLowerCase(),primaryImage(p)]));
+   orders.forEach(o=>{if(Array.isArray(o.items))o.items=o.items.map(item=>({...item,image:item.image||imageById.get(String(item.product_id))||imageBySku.get(String(item.sku||item.product_sku||'').trim().toLowerCase())||imageByName.get(String(item.name||'').trim().toLowerCase())||''}));});
   }
   const cards=orders.map((o,i)=>renderOrder(o,i)).join('');
   const cardCount=(cards.match(/class="order-card"/g)||[]).length;
