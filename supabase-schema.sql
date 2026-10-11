@@ -21,6 +21,12 @@ create table if not exists public.admin_users (
 alter table public.products enable row level security;
 alter table public.admin_users enable row level security;
 
+-- Permissões SQL base; as políticas RLS abaixo continuam controlando o acesso às linhas.
+grant usage on schema public to anon, authenticated;
+grant select on public.products to anon, authenticated;
+grant insert, update, delete on public.products to authenticated;
+grant select on public.admin_users to authenticated;
+
 drop policy if exists "Anyone can view active products" on public.products;
 create policy "Anyone can view active products" on public.products for select using (active = true);
 drop policy if exists "Admins can manage products" on public.products;
