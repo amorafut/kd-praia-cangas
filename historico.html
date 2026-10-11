@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#244b4b"><title>Acompanhar pedido | K d'praia Cangas</title>
+<style>
+:root{--ink:#244b4b;--aqua:#5bc2be;--sand:#fff8ef;--muted:#6c8180;--line:#e6eeea;--pale:#e8f4f1}
+*{box-sizing:border-box}body{margin:0;background:var(--sand);color:var(--ink);font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif}.top{background:#fffdf9;border-bottom:1px solid var(--line);padding:18px 20px}.top a{color:var(--ink);text-decoration:none;font-weight:700}.wrap{max-width:760px;margin:32px auto;padding:0 16px 50px}.panel{background:#fff;border:1px solid var(--line);border-radius:20px;padding:clamp(20px,5vw,34px);box-shadow:0 12px 32px #285b5814}h1{font:clamp(28px,5vw,38px) Georgia,serif;margin:8px 0}p{line-height:1.5}.muted{color:var(--muted);font-size:14px}.field{margin:16px 0}.field label{display:block;font-size:13px;font-weight:750;margin-bottom:7px}.field input{width:100%;padding:14px;border:1px solid var(--line);border-radius:12px;font:inherit;color:var(--ink);background:white}.btn{width:100%;background:var(--ink);color:white;padding:14px;border:0;border-radius:12px;font:inherit;font-weight:750;cursor:pointer}.result{margin-top:22px}.hidden{display:none!important}.status{display:inline-block;padding:8px 12px;border-radius:30px;background:var(--pale);font-weight:750}.steps{display:grid;gap:10px;margin:18px 0}.step{padding:12px;border:1px solid var(--line);border-radius:12px;display:flex;gap:10px;align-items:center}.step.active{border-color:var(--aqua);background:#f0f8f5}.dot{width:10px;height:10px;border-radius:50%;background:#b8c9c5;flex:none}.step.active .dot{background:var(--aqua)}.items{padding-left:20px}.tracking{background:var(--pale);padding:14px;border-radius:12px;overflow-wrap:anywhere}.err{color:#a53d35}.footer{text-align:center;color:var(--muted);font-size:12px;margin:18px}
+</style></head><body>
+<header class="top"><a href="./">← Voltar à loja</a></header>
+<main class="wrap"><section class="panel"><div class="muted">K d'praia por Karla Almeida</div><h1>Histórico de pedidos</h1><p class="muted">Informe o e-mail usado nas compras. Seus pedidos aparecerão do mais recente para o mais antigo.</p>
+<form id="trackForm"><div class="field"><label for="email">E-mail usado nas compras</label><input id="email" type="email" required autocomplete="email" placeholder="voce@exemplo.com"></div><button class="btn" id="submitBtn">Consultar histórico</button></form><p id="message" class="muted" role="status"></p><div id="result" class="result hidden"></div></section><div class="footer">Precisa de ajuda com algum pedido? Entre em contato com a loja pelo WhatsApp.</div></main>
+<script src="./supabase-config.js"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script>
+const $=id=>document.getElementById(id);
+const safe=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const money=n=>n==null?'A definir':Number(n).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const statusInfo={
+'Novo pedido':['Pedido recebido','Recebemos seu pedido. A loja ainda vai confirmar disponibilidade, frete e pagamento.'],
+'Em atendimento':['Em atendimento','A loja está conversando com você para combinar os detalhes.'],
+'Aguardando pagamento':['Aguardando pagamento','Aguardamos a confirmação do pagamento.'],
+'Pago':['Pagamento confirmado','O pagamento foi marcado como confirmado.'],
+'Em preparação':['Em preparação','Seu pedido está sendo separado e preparado para envio.'],
+'Enviado':['Pedido enviado','Seu pedido foi despachado. Consulte o código de rastreio abaixo, se informado.'],
+'Concluído':['Pedido concluído','Este pedido foi marcado como concluído.'],
+'Cancelado':['Pedido cancelado','Este pedido foi marcado como cancelado.']
+};
+let db=null;
+function showError(t){$('message').textContent=t;$('message').className='muted err';$('result').classList.add('hidden')}
+function renderOrder(o){
+ const info=statusInfo[o.status]||['Status do pedido',o.status||'Em atualização'];
+ const orderItems=Array.isArray(o.items)?o.items:[];
+ const steps=['Novo pedido','Em atendimento','Aguardando pagamento','Pago','Em preparação','Enviado'];
+ const idx=steps.indexOf(o.status);
+ const tracking=o.tracking_code?'<div class="tracking"><b>Código de rastreio</b><p style="margin:7px 0;font-size:18px;font-weight:800">'+safe(o.tracking_code)+'</p><a href="https://rastreamento.correios.com.br/app/index.php" target="_blank" rel="noopener">Consultar no site dos Correios ↗</a></div>':'<p class="muted">O código de rastreio ainda não foi informado pela loja.</p>';
+ const progress=o.status==='Cancelado'?'<div class="tracking">Este pedido foi cancelado. Se precisar de ajuda, fale com a loja.</div>':'<div class="steps">'+steps.map((s,i)=>'<div class="step '+(idx>=i?'active':'')+'"><span class="dot"></span><div><b>'+safe(s)+'</b>'+(s===o.status?'<div class="muted">Etapa atual</div>':'')+'</div></div>').join('')+(o.status==='Concluído'?'<div class="step active"><span class="dot"></span><div><b>Concluído</b><div class="muted">Etapa atual</div></div></div>':'')+'</div>';
+ const itemHtml=orderItems.map(i=>'<li>'+safe(i.name)+' — '+safe(i.quantity)+' un. × '+money(i.unit_price)+'</li>').join('');
+ return '<article style="border:1px solid var(--line);border-radius:16px;padding:18px;margin:18px 0;background:#fff"><div class="muted">Pedido '+safe(o.order_number)+' · '+new Date(o.created_at).toLocaleString('pt-BR')+'</div><h2 style="margin:8px 0 12px">'+safe(info[0])+'</h2><span class="status">'+safe(o.status)+'</span><p>'+safe(info[1])+'</p>'+progress+'<h3>Itens do pedido</h3><ul class="items">'+itemHtml+'</ul><p><b>Subtotal:</b> '+money(o.subtotal)+'<br><b>Frete:</b> '+money(o.shipping_cost)+'<br><b>Total final:</b> '+money(o.total)+'</p><h3>Envio</h3>'+tracking+'<p class="muted">Última atualização: '+new Date(o.updated_at||o.created_at).toLocaleString('pt-BR')+'</p></article>';
+}
+$('trackForm').addEventListener('submit',async e=>{
+ e.preventDefault();
+ if(!db){showError('Não foi possível conectar ao sistema. Atualize a página e tente novamente.');return}
+ const email=$('email').value.trim().toLowerCase();
+ $('submitBtn').disabled=true;$('submitBtn').textContent='Consultando…';$('message').textContent='';$('result').classList.add('hidden');
+ try{
+  const {data,error}=await db.rpc('track_customer_orders',{p_email:email});
+  if(error)throw error;
+  const orders=Array.isArray(data)?data:[];
+  if(!orders.length){showError('Não encontramos pedidos para esse e-mail. Confira se digitou o mesmo e-mail usado nas compras.');return}
+  $('result').innerHTML='<h2>'+orders.length+(orders.length===1?' pedido encontrado':' pedidos encontrados')+'</h2>'+orders.map(renderOrder).join('');
+  $('result').classList.remove('hidden');$('message').textContent='Histórico carregado do mais recente para o mais antigo.';$('message').className='muted';
+ }catch(err){console.error(err);showError('Não foi possível consultar o histórico. Confirme se a nova migração foi executada no Supabase.')}
+ finally{$('submitBtn').disabled=false;$('submitBtn').textContent='Consultar histórico'}
+});
+(function init(){if(window.KDPRAIA_CONFIG&&window.supabase){db=window.supabase.createClient(window.KDPRAIA_CONFIG.supabaseUrl,window.KDPRAIA_CONFIG.supabaseAnonKey)}else showError('Configuração da loja não encontrada.')})();
+</script></body></html>
